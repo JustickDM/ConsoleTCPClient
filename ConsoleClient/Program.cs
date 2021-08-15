@@ -6,10 +6,9 @@ namespace ConsoleClient
 {
 	internal sealed class Program
 	{
-		static void Main(string[] args)
+		private static void Main(string[] args)
 		{
 			Console.Title = "Client";
-
 			Console.Write($"Write hostname to connect: ");
 
 			var hostname = Console.ReadLine();
@@ -28,50 +27,40 @@ namespace ConsoleClient
 					{
 						while (true)
 						{
-							using (var tcpClient = new TcpClient())
+							using var tcpClient = new TcpClient();
+
+							Console.WriteLine($"Connecting to {hostname}:{port}...");
+
+							tcpClient.Connect(hostname, port);
+
+							if (tcpClient.Connected)
 							{
-								Console.WriteLine($"Connecting to {hostname}:{port}...");
+								Console.WriteLine($"Connected");
+								Console.WriteLine(string.Empty);
+								Console.Write($"Your message: ");
 
-								tcpClient.Connect(hostname, port);
+								var clientMessage = Console.ReadLine();
 
-								if (tcpClient.Connected)
-								{
-									Console.WriteLine($"Connected");
-									Console.WriteLine(string.Empty);
+								using var networkStream = tcpClient.GetStream();
+								using var streamWriter = new BinaryWriter(networkStream);
+								using var streamReader = new BinaryReader(networkStream);
 
-									Console.Write($"Your message: ");
+								streamWriter.Write(clientMessage);
+								streamWriter.Flush();
 
-									var clientMessage = Console.ReadLine();
+								var serverMessage = streamReader.ReadString();
 
-									using (var networkStream = tcpClient.GetStream())
-									{
-										using (var streamWriter = new StreamWriter(networkStream) { AutoFlush = true })
-										{
-											streamWriter.WriteLine(clientMessage);
-
-											var serverMessage = string.Empty;
-
-											using (var streamReader = new StreamReader(networkStream))
-											{
-												serverMessage = streamReader.ReadLine();
-											}
-
-											Console.WriteLine($"Server message: {serverMessage}");
-										}
-									}
-
-									Console.WriteLine(string.Empty);
-								}
-								else
-									Console.WriteLine($"Not connected");
+								Console.WriteLine($"Server message: {serverMessage}");
+								Console.WriteLine(string.Empty);
 							}
+							else
+								Console.WriteLine($"Not connected");
 						}
 					}
 					catch (Exception ex)
 					{
 						Console.WriteLine(ex.Message);
-
-						File.WriteAllText("logs.bin", $"Message: {ex.Message}. StackTrace: {ex.StackTrace}");
+						Loger.WriteException(ex);
 					}
 				}
 				else
